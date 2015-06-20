@@ -21,6 +21,7 @@ package com.knowledgecode.cordova.websocket;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import android.util.Log;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.PluginResult;
@@ -37,6 +38,9 @@ import com.knowledgecode.cordova.websocket.WebSocketGenerator.OnOpenListener;
 
 import android.util.SparseArray;
 import android.webkit.CookieManager;
+import android.webkit.CookieSyncManager;
+import android.net.Uri;
+import android.net.Uri.Builder;
 
 /**
  * Connect to server.
@@ -88,12 +92,15 @@ class ConnectionTask implements Task {
 
             int id = args.getInt(0);
             URI uri = new URI(args.getString(1));
+	    Log.d("ConnectionTask", "make connection with: " + uri);
             String protocol = args.getString(2);
             JSONObject options = args.getJSONObject(5);
             String origin = options.optString("origin", args.getString(3));
             String agent = options.optString("agent", args.getString(4));
             long maxConnectTime =  options.optLong("maxConnectTime", MAX_CONNECT_TIME);
+	    String cookieUrl = uri.getHost();
 
+	    Log.d("ConnectionTask", "set text message size");
             client.setMaxTextMessageSize(options.optInt("maxTextMessageSize", MAX_TEXT_MESSAGE_SIZE));
             client.setMaxBinaryMessageSize(options.optInt("maxBinaryMessageSize", MAX_BINARY_MESSAGE_SIZE));
             if (protocol.length() > 0) {
@@ -105,7 +112,17 @@ class ConnectionTask implements Task {
             if (agent.length() > 0) {
                 client.setAgent(agent);
             }
-            setCookie(client.getCookies(), uri.getHost());
+
+	    if (uri.getScheme().equals("wss")) {
+		Log.d("ConnectionTask","WSS!! Replace scheme with HTTPS for CookieManager");
+		Uri.Builder builder = new Uri.Builder();
+		builder.scheme("https")
+		    .authority(uri.getAuthority())
+		    .appendPath(uri.getPath());
+		
+		cookieUrl = builder.build().toString();
+	    }
+            setCookie(client.getCookies(), cookieUrl);
 
             WebSocketGenerator gen = new WebSocketGenerator(id, ctx);
 
